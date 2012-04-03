@@ -1,0 +1,84 @@
+#!/usr/bin/env ruby
+#
+# Copyright (c) 2012 Stefan Thomas <justmoon@members.fsf.org>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+require 'fileutils'
+require 'optparse'
+
+prefix = "/usr/local"
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: configure [options]"
+  opts.on("-p", "--prefix PATH", "Set installation prefix") do |p|
+    prefix = p
+  end
+  opts.on_tail("-h", "--help", "Output usage summary") do
+    puts opts
+    exit
+  end
+
+  opts.parse!(ARGV)
+end
+
+puts "== removing old build files"
+FileUtils.rm_rf("build")
+FileUtils.rm_f("Makefile")
+puts "== running CMake in build directory"
+FileUtils.mkdir("build")
+FileUtils.cd("build") do
+  if (!system("cmake -DCMAKE_INSTALL_PREFIX='#{prefix}' .."))
+    puts "The \"cmake\" program is required to configure bzing. It's"
+    puts "available from most ports/packaging systems and http://cmake.org"
+    exit 1
+  end
+end
+
+# now generate a Makefile
+puts "== Generating Makefile"
+File.open("Makefile", "w+") do |f|
+  f.puts ".PHONY: all clean distclean install package test distro"
+  f.puts "all: distro doc test"
+  f.puts
+  f.puts "distro:"
+  f.puts "	@make --directory=build --no-print-directory"
+  f.puts
+  f.puts "doc:"
+  f.puts "	@make --directory=build --no-print-directory doc"
+  f.puts
+  f.puts "test:"
+  f.puts "	@make --directory=build --no-print-directory test"
+  f.puts
+  f.puts "clean:"
+  f.puts "	@make --directory=build --no-print-directory clean"
+  f.puts
+  f.puts "distclean:"
+  f.puts "	@rm -rf Makefile build"
+  f.puts "	@rm -f bzing-*.tgz"
+  f.puts
+  f.puts "install: all"
+  f.puts "	@make --directory=build --no-print-directory install"
+  f.puts
+  f.puts "package: all"
+  f.puts "	@echo \"compressing to `basename build/bzing-*`.tgz\""
+  f.puts "	@cd build && tar czf ../`basename bzing-*`.tgz bzing-*"
+end
+
+puts "== Configured with installation prefix: #{prefix}"
