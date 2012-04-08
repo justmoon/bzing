@@ -20,12 +20,25 @@
  * SOFTWARE.
  */
 
-#ifndef __BZING_COMMON_H__
-#define __BZING_COMMON_H__
+#include "bzing_parser.h"
 
-#include <stddef.h>
-#include <bzing/bzing_types.h>
-
-#define BZING_API
-
-#endif
+uint64_t parse_var_int(const uint8_t *data, size_t *offset)
+{
+  uint64_t result;
+  if (data[*offset] < 0xFD) {
+    result = data[(*offset)++];
+  } else if (data[*offset] == 0xFD) {
+    result = * (uint16_t*) (data+*offset+1);
+    *offset += 3;
+  } else if (data[*offset] == 0xFE) {
+    result = * (uint32_t*) (data+*offset+1);
+    *offset += 5;
+  } else if (data[*offset] == 0xFF) {
+    result = * (uint64_t*) (data+*offset+1);
+    *offset += 9;
+  }
+  if (result > MAX_SIZE) {
+    // TODO: Error
+  }
+  return result;
+}

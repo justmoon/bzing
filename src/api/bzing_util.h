@@ -20,12 +20,19 @@
  * SOFTWARE.
  */
 
-#ifndef __BZING_COMMON_H__
-#define __BZING_COMMON_H__
+#ifndef __BZING_UTIL_H__
+#define __BZING_UTIL_H__
 
-#include <stddef.h>
-#include <bzing/bzing_types.h>
+#include <bzing/bzing_common.h>
 
-#define BZING_API
+void double_sha256(const uint8_t *data, size_t len, bz_uint256_t *hash);
+
+size_t calc_merkle_size(size_t leaf_count);
+void calc_merkle_root(bz_uint256_t *tx_hashes, size_t n_tx, bz_uint256_t *result);
+
+void print_uint256(const bz_uint256_t *hash);
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 #endif

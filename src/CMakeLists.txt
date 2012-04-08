@@ -18,9 +18,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-SET (SRCS bzing.c)
-SET (HDRS bzing_chain.h)
-SET (PUB_HDRS api/bzing_db.h api/bzing_common.h)
+SET (SRCS bzing.c bzing_parser.c util.c sha2/sha2.c)
+SET (HDRS bzing_chain.h bzing_parser.h)
+SET (PUB_HDRS api/bzing_db.h api/bzing_common.h api/bzing_types.h api/bzing_util.h)
 
 # Ensure defined when building bzing (as opposed to using it from
 # another project). Used to ensure correct function export when

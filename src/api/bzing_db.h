@@ -42,6 +42,18 @@ extern "C" {
    */
   BZING_API void bzing_free(bzing_handle handle);
 
+  /**
+   * Add a block to the chain.
+   */
+  BZING_API void bzing_block_add(bzing_handle handle,
+                                 const uint8_t *data, size_t max_len, size_t *actual_len);
+
+  /**
+   * Regenerate indexes for specific block chain data.
+   */
+  BZING_API void bzing_index_regen(bzing_handle handle,
+                                   const uint8_t *data, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

@@ -20,12 +20,13 @@
  * SOFTWARE.
  */
 
-#ifndef __BZING_COMMON_H__
-#define __BZING_COMMON_H__
+#ifndef __BZING_PARSER_H__
+#define __BZING_PARSER_H__
 
-#include <stddef.h>
-#include <bzing/bzing_types.h>
+#include "api/bzing_common.h"
 
-#define BZING_API
+static const unsigned int MAX_SIZE = 0x02000000;
+
+uint64_t parse_var_int(const uint8_t *data, size_t *offset);
 
 #endif
