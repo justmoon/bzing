@@ -21,7 +21,7 @@
  */
 
 #include "api/bzing_util.h"
-#include "sha2/sha2.h"
+#include "openssl/sha.h"
 
 #include <string.h>
 #include <stdio.h>

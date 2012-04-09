@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-SET (SRCS bzing.c bzing_parser.c util.c sha2/sha2.c)
+SET (SRCS bzing.c bzing_parser.c util.c)
 SET (HDRS bzing_chain.h bzing_parser.h)
 SET (PUB_HDRS api/bzing_db.h api/bzing_common.h api/bzing_types.h api/bzing_util.h)
 
