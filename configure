@@ -24,11 +24,15 @@ require 'fileutils'
 require 'optparse'
 
 prefix = "/usr/local"
+debug = ""
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: configure [options]"
   opts.on("-p", "--prefix PATH", "Set installation prefix") do |p|
     prefix = p
+  end
+  opts.on("-g", "--debug", "Set build type to Debug (default: Release)") do |p|
+    debug = " -DCMAKE_BUILD_TYPE=Debug"
   end
   opts.on_tail("-h", "--help", "Output usage summary") do
     puts opts
@@ -44,7 +48,7 @@ FileUtils.rm_f("Makefile")
 puts "== running CMake in build directory"
 FileUtils.mkdir("build")
 FileUtils.cd("build") do
-  if (!system("cmake -DCMAKE_INSTALL_PREFIX='#{prefix}' .."))
+  if (!system("cmake -DCMAKE_INSTALL_PREFIX='#{prefix}'#{debug} .."))
     puts "The \"cmake\" program is required to configure bzing. It's"
     puts "available from most ports/packaging systems and http://cmake.org"
     exit 1
