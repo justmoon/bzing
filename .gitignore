@@ -1,3 +1,11 @@
+# Mac junk
 .DS_Store
+
+# Build-related files
 Makefile
 /build/
+
+# Ignore callgrind profiles
+callgrind*
+callgrind.*
+callgrind.out.*.*
