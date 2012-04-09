@@ -40,6 +40,11 @@ bzing_alloc(void)
   hnd->inv = kh_init(256);
 #elif BZ_DB_ENGINE == BZ_DBE_LMC
   hnd->inv = local_memcache_create("main", 0, 0, 0, &hnd->inv_error);
+  if (!hnd->inv) {
+    fprintf(stderr, "Couldn't create localmemcache: %s\n",
+            (char *) &hnd->inv_error.error_str);
+    return NULL;
+  }
 #endif
   return hnd;
 }
@@ -59,12 +64,22 @@ bzing_free(bzing_handle hnd)
 }
 
 void
+bzing_reset(bzing_handle hnd)
+{
+#if BZ_DB_ENGINE == BZ_DBE_KHASH
+  // TODO
+#elif BZ_DB_ENGINE == BZ_DBE_LMC
+  local_memcache_drop_namespace("main", 0, 0, &hnd->inv_error);
+#endif
+}
+
+void
 bzing_block_add(bzing_handle hnd,
                 const uint8_t *data, size_t max_len, size_t *actual_len)
 {
-  int i, result;
+  int i;
   uint64_t n_tx, n_txin, n_txout, script_len, offset = 80, tx_start;
-  bz_uint256_t block_hash, *tx_hashes, merkle_root;
+  bz_uint256_t block_hash, *tx_hashes = NULL, merkle_root;
 
   double_sha256(data, 80, &block_hash);
 
@@ -80,6 +95,7 @@ bzing_block_add(bzing_handle hnd,
 
 #if BZ_DB_ENGINE == BZ_DBE_KHASH
   khiter_t iter;
+  int result;
   iter = kh_put(256, hnd->inv, block_hash, &result);
   kh_val(hnd->inv, iter) = offset;
 #elif BZ_DB_ENGINE == BZ_DBE_LMC
@@ -140,7 +156,7 @@ bzing_index_regen(bzing_handle hnd,
 
   while (offset < (len-1)) {
     n_blocks++;
-    printf("Block #%u %u\n", n_blocks, offset);
+    printf("Block #%lu %llu\n", (long unsigned int) n_blocks, (long long unsigned int) offset);
     bzing_block_add(hnd, data + offset, len - offset, &block_len);
     offset += block_len;
   }

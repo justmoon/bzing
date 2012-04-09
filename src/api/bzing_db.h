@@ -43,6 +43,11 @@ extern "C" {
   BZING_API void bzing_free(bzing_handle handle);
 
   /**
+   * Reset a database.
+   */
+  BZING_API void bzing_reset(bzing_handle handle);
+
+  /**
    * Add a block to the chain.
    */
   BZING_API void bzing_block_add(bzing_handle handle,

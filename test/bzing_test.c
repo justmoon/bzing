@@ -36,12 +36,13 @@ int
 main(int argc, char ** argv)
 {
   bzing_handle hnd;
-  int i, fd, result;
+  int fd, result;
   size_t filesize;
   unsigned char *map;
   struct stat buffer;
 
   hnd = bzing_alloc();
+  //bzing_reset(hnd);
   fd = open(FILEPATH, O_RDWR | O_CREAT, (mode_t)0600);
   if (fd == -1) {
     perror("Error opening file for writing");
