@@ -30,7 +30,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
-#define FILEPATH "/atlas/blkchain.dat"
+#define FILEPATH "/atlas/blkchain_ng.dat"
 
 int
 main(int argc, char ** argv)

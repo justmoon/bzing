@@ -25,10 +25,56 @@
 
 #include "api/bzing_db.h"
 
-#define BZ_DBE_KHASH 1
-#define BZ_DBE_LMC 2
+#define BZ_ENGINE_KHASH
+#define BZ_ENGINE_LMC
+#define BZ_ENGINE_TC
+#define BZ_ENGINE_KC
+#define BZ_ENGINE_BDB
 
-#define BZ_DB_ENGINE BZ_DBE_LMC
+// Engine IDs
+#define BZ_EID_KHASH 1
+#define BZ_EID_LMC 2
+#define BZ_EID_TC 3
+#define BZ_EID_KC 4
+#define BZ_EID_BDB 5
+
+#define BZ_EID_DEFAULT BZ_EID_KC
+
+// Select default engine
+// (precedence: KC, TC, LMC, BDB, KHASH)
+#ifndef BZ_EID_DEFAULT
+#ifdef BZ_ENGINE_KC
+#define BZ_EID_DEFAULT BZ_EID_KC
+#endif
+#endif
+
+#ifndef BZ_EID_DEFAULT
+#ifdef BZ_ENGINE_TC
+#define BZ_EID_DEFAULT BZ_EID_TC
+#endif
+#endif
+
+#ifndef BZ_EID_DEFAULT
+#ifdef BZ_ENGINE_LMC
+#define BZ_EID_DEFAULT BZ_EID_LMC
+#endif
+#endif
+
+#ifndef BZ_EID_DEFAULT
+#ifdef BZ_ENGINE_BDB
+#define BZ_EID_DEFAULT BZ_EID_BDB
+#endif
+#endif
+
+#ifndef BZ_EID_DEFAULT
+#ifdef BZ_ENGINE_KHASH
+#define BZ_EID_DEFAULT BZ_EID_KHASH
+#endif
+#endif
+
+#ifndef BZ_EID_DEFAULT
+#error No engines selected for compilation
+#endif
 
 /*
 #include "ulib/alignhash_tpl.h"
@@ -66,7 +112,9 @@ static inline khint_t __ac_X31_hash_bin(kstring_t *s)
 KHASH_MAP_INIT_BIN(bin, kstring_t *)
 */
 
-#if BZ_DB_ENGINE == BZ_DBE_KHASH
+//------------------------------------------------------------------------------
+
+#ifdef BZ_ENGINE_KHASH
 
 #include "lookup3.h"
 #include "klib/khash.h"
@@ -80,7 +128,11 @@ static inline khint_t __ac_X31_hash_bin(kstring_t *s)
 
 #define kh_256_hash_func(key) CrapWow((key).d8, 32, 0)
 //#define kh_256_hash_func(key) (khint_t) (key).d8[0]
-#define kh_256_hash_equal(a, b) (a.d64[0] == b.d64[0])
+#define kh_256_hash_equal(a, b) ( \
+  (a).d64[0] == (b).d64[0] &&     \
+  (a).d64[1] == (b).d64[1] &&     \
+  (a).d64[2] == (b).d64[2] &&     \
+  (a).d64[3] == (b).d64[3] )
 
 #define KHASH_SET_INIT_256(name)										\
 	KHASH_INIT(name, bz_uint256_t, char, 0, kh_256_hash_func, kh_256_hash_equal)
@@ -91,23 +143,68 @@ static inline khint_t __ac_X31_hash_bin(kstring_t *s)
 
 KHASH_MAP_INIT_256(256, uint64_t)
 
-struct bzing_handle_t {
-  // index of inventories
-  khash_t(256) *inv;
-};
+#endif
 
-#elif BZ_DB_ENGINE == BZ_DBE_LMC
+//------------------------------------------------------------------------------
+
+#ifdef BZ_ENGINE_LMC
 
 #include <localmemcache.h>
 
-struct bzing_handle_t {
-  // index of inventories
-  local_memcache_t *inv;
-  lmc_error_t inv_error;
-};
-
-#else
-#error BZ_DB_ENGINE should be defined to one of BZ_DBE_* constants.
 #endif
+
+//------------------------------------------------------------------------------
+
+#ifdef BZ_ENGINE_TC
+
+#include <tcutil.h>
+#include <tchdb.h>
+
+#endif
+
+//------------------------------------------------------------------------------
+
+#ifdef BZ_ENGINE_KC
+
+#include <kclangc.h>
+
+#endif
+
+//------------------------------------------------------------------------------
+
+#ifdef BZ_ENGINE_BDB
+
+typedef uint32_t u_int;
+typedef uint64_t u_long;
+
+#include <db.h>
+
+#endif
+
+//------------------------------------------------------------------------------
+
+struct bzing_handle_t
+{
+  int engine_id; // BZ_EID_*
+
+#ifdef BZ_ENGINE_KHASH
+  // index of inventories
+  khash_t(256) *kh_inv;
+#endif
+
+#ifdef BZ_ENGINE_LMC
+  // index of inventories
+  local_memcache_t *lmc_inv;
+  lmc_error_t lmc_error;
+#endif
+
+#ifdef BZ_ENGINE_TC
+  TCHDB *tc_inv;
+#endif
+
+#ifdef BZ_ENGINE_BDB
+  DB *bdb_inv;
+#endif
+};
 
 #endif
