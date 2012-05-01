@@ -179,7 +179,7 @@ static const double __ac_HASH_UPPER = 0.77;
 
 #define KHASH_INIT2(name, SCOPE, khkey_t, khval_t, kh_is_map, __hash_func, __hash_equal) \
 	__KHASH_TYPE(name, khkey_t, khval_t) 								\
-	SCOPE kh_##name##_t *kh_init_##name() {								\
+	SCOPE kh_##name##_t *kh_init_##name(void) {								\
 		return (kh_##name##_t*)calloc(1, sizeof(kh_##name##_t));		\
 	}																	\
 	SCOPE void kh_destroy_##name(kh_##name##_t *h)						\

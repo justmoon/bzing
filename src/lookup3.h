@@ -1,6 +1,6 @@
 #include "api/bzing_common.h"
 
-inline uint32_t
+static inline uint32_t
 lookup3( const uint32_t *key, uint32_t len, uint32_t seed ) {
 	#if defined(_MSC_VER)
 	#define rot(x,k) _rotl(x,k)
@@ -64,7 +64,7 @@ lookup3( const uint32_t *key, uint32_t len, uint32_t seed ) {
 }
 
 
-inline uint32_t
+static inline uint32_t
 CrapWow( const uint8_t *key, uint32_t len, uint32_t seed ) {
 #if !defined(__LP64__) && !defined(_MSC_VER) && ( defined(__i386__) || defined(__i486__) || defined(__i586__) || defined(__i686__) )
 	// esi = k, ebx = h
