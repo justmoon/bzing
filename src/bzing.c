@@ -81,20 +81,20 @@ bzing_alloc(void)
       fprintf(stderr, "open error: %s\n", db_strerror(result));
       return NULL;
     }
-    hnd->bdb_inv = dbp;
 
     flags = DB_CREATE;
 
-    result = hnd->bdb_inv->open(hnd->bdb_inv, // DB pointer
-                                NULL,         // Transaction pointer
-                                "main.db",    // Database file
-                                NULL,         // Database name (optional)
-                                DB_BTREE,     // Database access method
-                                flags,        // Open flags
-                                0);           // File mode (using defaults)
+    result = dbp->open(dbp,          // DB pointer
+                       NULL,         // Transaction pointer
+                       "main.db",    // Database file
+                       NULL,         // Database name (optional)
+                       DB_HASH,      // Database access method
+                       flags,        // Open flags
+                       0);           // File mode (using defaults)
     if (result != 0) {
 
     }
+    hnd->bdb_inv = dbp;
     break;
 #endif
   default:
