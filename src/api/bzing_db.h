@@ -48,6 +48,11 @@ extern "C" {
   BZING_API void bzing_reset(bzing_handle handle);
 
   /**
+   * Add an item to the inventory index.
+   */
+  BZING_API void bzing_inv_add(bzing_handle hnd, bz_uint256_t hash, uint64_t data);
+
+  /**
    * Add a block to the chain.
    */
   BZING_API void bzing_block_add(bzing_handle handle,

@@ -50,6 +50,8 @@ bzing_alloc(void)
 #endif
 
   switch (hnd->engine_id) {
+  case BZ_EID_NONE:
+    break;
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
     hnd->kh_inv = kh_init(256);
@@ -147,7 +149,7 @@ bzing_reset(bzing_handle hnd)
   DBT bdb_key, bdb_data;
 #endif
 
-static inline void
+void
 bzing_inv_add(bzing_handle hnd,
               bz_uint256_t hash, uint64_t data)
 {

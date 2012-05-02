@@ -47,7 +47,7 @@ SET(CMAKE_C_FLAGS
     "${CMAKE_C_FLAGS} -std=c99 -pedantic -Wpointer-arith -Wno-format-y2k -Wstrict-prototypes -Wmissing-declarations -Wnested-externs -Wextra -Wundef -Wwrite-strings -Wold-style-definition -Wredundant-decls -Wno-unused-parameter -Wno-sign-compare -Wmissing-prototypes")
 
 SET(CMAKE_C_FLAGS_DEBUG "-DDEBUG -g")
-SET(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O2 -Wuninitialized")
+SET(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O3 -Wuninitialized")
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(test)
