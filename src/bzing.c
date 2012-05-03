@@ -93,6 +93,14 @@ bzing_alloc(void)
     }
     break;
 #endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    hnd->kc_inv = kcdbnew();
+    if (!kcdbopen(hnd->kc_inv, "main.kch", KCOWRITER | KCOCREATE)) {
+      fprintf(stderr, "open error: %s\n", kcecodename(kcdbecode(hnd->kc_inv)));
+    }
+    break;
+#endif
 #ifdef BZ_ENGINE_BDB
   case BZ_EID_BDB:
     result = db_create(&dbp, NULL, 0);
@@ -212,6 +220,13 @@ bzing_inv_add(bzing_handle hnd,
     tchdbput(hnd->tc_inv,
              hash.d8, 32,
              (char *) data, sizeof(bz_inv_t));
+    break;
+#endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    kcdbset(hnd->kc_inv,
+            (char *) hash.d8, 32,
+            (char *) data, sizeof(bz_inv_t));
     break;
 #endif
 #ifdef BZ_ENGINE_BDB

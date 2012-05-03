@@ -44,6 +44,10 @@ struct bzing_handle
   TCHDB *tc_inv;
 #endif
 
+#ifdef BZ_ENGINE_KC
+  KCDB *kc_inv;
+#endif
+
 #ifdef BZ_ENGINE_BDB
   DB *bdb_inv;
 #endif

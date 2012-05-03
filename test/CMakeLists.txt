@@ -26,4 +26,4 @@ LINK_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/../${BZING_DIST_NAME}/lib)
 
 ADD_EXECUTABLE(bzing_test ${SRCS})
 
-TARGET_LINK_LIBRARIES(bzing_test bzing_s lmc pthread rt crypto tokyocabinet db)
+TARGET_LINK_LIBRARIES(bzing_test bzing_s lmc pthread rt crypto tokyocabinet db kyotocabinet)
