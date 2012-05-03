@@ -29,6 +29,18 @@
 #include <stdio.h>
 #include <string.h>
 
+// mapping spent bitset position to value
+const uint64_t bz_txi_spent_map[] = {
+  0x8000000000000000,
+  0x4000000000000000,
+  0x2000000000000000,
+  0x1000000000000000,
+  0x0800000000000000,
+  0x0400000000000000,
+  0x0200000000000000,
+  0x0100000000000000
+};
+
 bzing_handle
 bzing_alloc(void)
 {
@@ -39,9 +51,14 @@ bzing_alloc(void)
   DB *dbp;
 #endif
 
-  hnd = malloc(sizeof(hnd));
+  hnd = malloc(sizeof(bzing_handle_t));
   //hnd->inv = alignhash_init_inv();
   hnd->engine_id = BZ_EID_DEFAULT;
+  hnd->spent_data = NULL; // TODO
+  // the spent offset mustn't be zero, otherwise a transaction might look like
+  // a block
+  hnd->spent_len = 1;
+  hnd->spent_size = 0; // TODO
 
   printf("%d %d\n", hnd->engine_id, BZ_EID_DEFAULT);
 
@@ -145,13 +162,29 @@ bzing_reset(bzing_handle hnd)
 #endif
 }
 
+uint64_t
+bzing_spent_reserve(bzing_handle hnd, uint64_t count)
+{
+  uint64_t pos = hnd->spent_len;
+
+  hnd->spent_len += count;
+
+  // resize necessary?
+  if (hnd->spent_len > hnd->spent_size) {
+    // TODO: resize reserved memory
+    // TODO: zero new memory
+  }
+
+  return pos;
+}
+
 #ifdef BZ_ENGINE_BDB
   DBT bdb_key, bdb_data;
 #endif
 
 void
 bzing_inv_add(bzing_handle hnd,
-              bz_uint256_t hash, uint64_t data)
+              bz_uint256_t hash, bz_inv_t *data)
 {
   int result;
 #ifdef BZ_ENGINE_KHASH
@@ -163,18 +196,22 @@ bzing_inv_add(bzing_handle hnd,
   case BZ_EID_KHASH:
     if (hnd->engine_id == BZ_EID_KHASH) {
       iter = kh_put(256, hnd->kh_inv, hash, &result);
-      kh_val(hnd->kh_inv, iter) = data;
+      kh_val(hnd->kh_inv, iter) = *data;
     }
     break;
 #endif
 #ifdef BZ_ENGINE_LMC
   case BZ_EID_LMC:
-    local_memcache_set(hnd->lmc_inv, (char *) hash.d8, 32, (char *) &data, 8);
+    local_memcache_set(hnd->lmc_inv,
+                       (char *) hash.d8, 32,
+                       (char *) data, sizeof(bz_inv_t));
     break;
 #endif
 #ifdef BZ_ENGINE_TC
   case BZ_EID_TC:
-    tchdbput(hnd->tc_inv, (char *) hash.d8, 32, (char *) &data, 8);
+    tchdbput(hnd->tc_inv,
+             hash.d8, 32,
+             (char *) data, sizeof(bz_inv_t));
     break;
 #endif
 #ifdef BZ_ENGINE_BDB
@@ -183,8 +220,8 @@ bzing_inv_add(bzing_handle hnd,
     memset(&bdb_data, 0, sizeof(DBT));
     bdb_key.data = hash.d8;
     bdb_key.size = 32;
-    bdb_data.data = (char *) &data;
-    bdb_data.size = 8;
+    bdb_data.data = (char *) data;
+    bdb_data.size = sizeof(bz_inv_t);
 
     result = hnd->bdb_inv->put(hnd->bdb_inv, NULL, &bdb_key, &bdb_data, 0);
     break;
@@ -195,11 +232,13 @@ bzing_inv_add(bzing_handle hnd,
 }
 
 void
-bzing_block_add(bzing_handle hnd,
+bzing_block_add(bzing_handle hnd, uint32_t blk_no,
                 const uint8_t *data, size_t max_len, size_t *actual_len)
 {
   int i;
-  uint64_t n_tx, n_txin, n_txout, script_len, offset = 80, tx_start;
+  uint64_t n_tx, n_txin, n_txout, script_len, offset = 80, tx_start,
+           spent_offset;
+  bz_inv_t inv;
   bz_uint256_t block_hash, *tx_hashes = NULL, merkle_root;
 
   double_sha256(data, 80, &block_hash);
@@ -214,7 +253,10 @@ bzing_block_add(bzing_handle hnd,
   k_block_hash.s = (char *) &k_block_hash;
   kh_put(bin, hnd->inv, &k_block_hash, &result);*/
 
-  bzing_inv_add(hnd, block_hash, offset);
+  // create index entry for block
+  inv.offset = offset;
+  inv.spent = 0;
+  bzing_inv_add(hnd, block_hash, &inv);
 
   //print_uint256(&block_hash);
 
@@ -224,7 +266,11 @@ bzing_block_add(bzing_handle hnd,
   }
   for (i = 0; i < n_tx; i++) {
     tx_start = offset;
+
+    // skip version
     offset += 4;
+
+    // parse inputs
     n_txin = parse_var_int(data, &offset);
     while (n_txin > 0) {
       offset += 36;
@@ -232,6 +278,8 @@ bzing_block_add(bzing_handle hnd,
       offset += script_len + 4;
       n_txin--;
     }
+
+    // parse outputs
     n_txout = parse_var_int(data, &offset);
     while (n_txout > 0) {
       offset += 8;
@@ -239,10 +287,20 @@ bzing_block_add(bzing_handle hnd,
       offset += script_len;
       n_txout--;
     }
+
+    // skip lock_time
     offset += 4;
+
+    // calculate tx hash
     double_sha256(data+tx_start, offset-tx_start, &tx_hashes[i]);
 
-    bzing_inv_add(hnd, tx_hashes[i], offset);
+    // reserve space in spent map
+    spent_offset = bzing_spent_reserve(hnd, n_txout);
+
+    // create index entry for transaction
+    inv.offset = offset;
+    inv.spent = spent_offset;
+    bzing_inv_add(hnd, tx_hashes[i], &inv);
   }
   calc_merkle_root(tx_hashes, n_tx, &merkle_root);
   if (0 != memcmp(merkle_root.d8, data+36, sizeof(bz_uint256_t))) {
@@ -260,13 +318,14 @@ void
 bzing_index_regen(bzing_handle hnd,
                   const uint8_t *data, size_t len)
 {
-  size_t block_len, n_blocks = 0;
+  size_t block_len;
+  uint32_t n_blocks = 0;
   uint64_t offset = 0;
 
   while (offset < (len-1)) {
     n_blocks++;
     printf("Block #%lu %llu\n", (long unsigned int) n_blocks, (long long unsigned int) offset);
-    bzing_block_add(hnd, data + offset, len - offset, &block_len);
+    bzing_block_add(hnd, n_blocks, data + offset, len - offset, &block_len);
     offset += block_len;
   }
 }

@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
   /** block chain database instance handle */
-  typedef struct bzing_handle_t * bzing_handle;
+  typedef struct bzing_handle *bzing_handle;
 
   /**
    * Allocate a new database handle.
@@ -50,13 +50,15 @@ extern "C" {
   /**
    * Add an item to the inventory index.
    */
-  BZING_API void bzing_inv_add(bzing_handle hnd, bz_uint256_t hash, uint64_t data);
+  BZING_API void bzing_inv_add(bzing_handle hnd,
+                               bz_uint256_t hash, bz_inv_t *data);
 
   /**
    * Add a block to the chain.
    */
   BZING_API void bzing_block_add(bzing_handle handle,
-                                 const uint8_t *data, size_t max_len, size_t *actual_len);
+                                 uint32_t blk_no, const uint8_t *data,
+                                 size_t max_len, size_t *actual_len);
 
   /**
    * Regenerate indexes for specific block chain data.

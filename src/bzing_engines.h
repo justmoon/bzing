@@ -143,7 +143,7 @@ static inline khint_t __ac_X31_hash_bin(kstring_t *s)
 	KHASH_INIT(name, bz_uint256_t, khval_t, 1, kh_256_hash_func, kh_256_hash_equal)
 
 
-KHASH_MAP_INIT_256(256, uint64_t)
+KHASH_MAP_INIT_256(256, bz_inv_t)
 
 #endif
 

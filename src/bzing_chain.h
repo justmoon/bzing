@@ -25,10 +25,7 @@
 
 #include "bzing_engines.h"
 
-#define BZ_INV_TX      1
-#define BZ_INV_BLOCK   2
-
-struct bzing_handle_t
+struct bzing_handle
 {
   int engine_id; // BZ_EID_*
 
@@ -50,6 +47,15 @@ struct bzing_handle_t
 #ifdef BZ_ENGINE_BDB
   DB *bdb_inv;
 #endif
+
+  // spent map
+  char *spent_data;
+  // used length
+  uint64_t spent_len;
+  // available length (before memory region must be resized)
+  uint64_t spent_size;
 };
+
+typedef struct bzing_handle bzing_handle_t;
 
 #endif
