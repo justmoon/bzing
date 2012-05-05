@@ -80,7 +80,7 @@ bzing_alloc(void)
 #endif
 #ifdef BZ_ENGINE_ALIGN
   case BZ_EID_ALIGN:
-    hnd->align_inv = alignhash_init_inv();
+    hnd->ah_inv = alignhash_init_inv();
     break;
 #endif
 #ifdef BZ_ENGINE_LMC
@@ -205,49 +205,48 @@ bzing_spent_reserve(bzing_handle hnd, uint64_t count)
 #endif
 
 void
-bzing_inv_add(bzing_handle hnd,
-              bz_uint256_t hash, bz_inv_t *data)
+bzing_inv_set(bzing_handle hnd, bz_uint256_t *hash, bz_inv_t *data)
 {
   int result;
 #ifdef BZ_ENGINE_KHASH
   khiter_t kh_iter;
 #endif
 #ifdef BZ_ENGINE_ALIGN
-  ah_iter_t align_iter;
+  ah_iter_t ah_iter;
 #endif
 
   switch (hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
-    kh_iter = kh_put(256, hnd->kh_inv, hash, &result);
+    kh_iter = kh_put(256, hnd->kh_inv, *hash, &result);
     kh_val(hnd->kh_inv, kh_iter) = *data;
     break;
 #endif
 #ifdef BZ_ENGINE_ALIGN
   case BZ_EID_ALIGN:
     // TODO: Calculate hash
-    align_iter = alignhash_set(inv, hnd->align_inv, hash.d64[0], &result);
-    alignhash_value(hnd->align_inv, align_iter) = *data;
+    ah_iter = alignhash_set(inv, hnd->ah_inv, hash->d64[0], &result);
+    alignhash_value(hnd->ah_inv, ah_iter) = *data;
     break;
 #endif
 #ifdef BZ_ENGINE_LMC
   case BZ_EID_LMC:
     local_memcache_set(hnd->lmc_inv,
-                       (char *) hash.d8, 32,
+                       (char *) hash->d8, 32,
                        (char *) data, sizeof(bz_inv_t));
     break;
 #endif
 #ifdef BZ_ENGINE_TC
   case BZ_EID_TC:
     tchdbput(hnd->tc_inv,
-             hash.d8, 32,
+             hash->d8, 32,
              (char *) data, sizeof(bz_inv_t));
     break;
 #endif
 #ifdef BZ_ENGINE_KC
   case BZ_EID_KC:
     kcdbset(hnd->kc_inv,
-            (char *) hash.d8, 32,
+            (char *) hash->d8, 32,
             (char *) data, sizeof(bz_inv_t));
     break;
 #endif
@@ -255,7 +254,7 @@ bzing_inv_add(bzing_handle hnd,
   case BZ_EID_BDB:
     memset(&bdb_key, 0, sizeof(DBT));
     memset(&bdb_data, 0, sizeof(DBT));
-    bdb_key.data = hash.d8;
+    bdb_key.data = hash->d8;
     bdb_key.size = 32;
     bdb_data.data = (char *) data;
     bdb_data.size = sizeof(bz_inv_t);
@@ -268,13 +267,165 @@ bzing_inv_add(bzing_handle hnd,
   }
 }
 
+bz_inv_t
+bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash)
+{
+  int result;
+#ifdef BZ_ENGINE_KHASH
+  khiter_t kh_iter;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  ah_iter_t ah_iter;
+#endif
+
+  switch (hnd->engine_id) {
+#ifdef BZ_ENGINE_KHASH
+  case BZ_EID_KHASH:
+    kh_iter = kh_put(256, hnd->kh_inv, *hash, &result);
+    return kh_val(hnd->kh_inv, kh_iter);
+    break;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    // TODO: Calculate hash
+    ah_iter = alignhash_set(inv, hnd->ah_inv, hash->d64[0], &result);
+    return alignhash_value(hnd->ah_inv, ah_iter);
+    break;
+#endif
+  default:
+    break;
+  }
+}
+
+bz_cursor
+bzing_inv_cursor_find(bzing_handle hnd, bz_uint256_t *hash)
+{
+  int result;
+  bz_cursor c = (bz_cursor) malloc(sizeof(bz_cursor_t));
+
+  switch (hnd->engine_id) {
+#ifdef BZ_ENGINE_KHASH
+  case BZ_EID_KHASH:
+    c->kh_iter = kh_put(256, hnd->kh_inv, *hash, &result);
+    break;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    // TODO: Calculate hash
+    c->ah_iter = alignhash_set(inv, hnd->ah_inv, hash->d64[0], &result);
+    break;
+#endif
+  default:
+    break;
+  }
+
+  return c;
+}
+
+bz_inv_t
+bzing_inv_cursor_get(bzing_handle hnd, bz_cursor c)
+{
+  switch (hnd->engine_id) {
+#ifdef BZ_ENGINE_KHASH
+  case BZ_EID_KHASH:
+    return kh_val(hnd->kh_inv, c->kh_iter);
+    break;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    return alignhash_value(hnd->ah_inv, c->ah_iter);
+    break;
+#endif
+  default:
+    break;
+  }
+}
+
+bz_inv_t
+bzing_inv_cursor_set(bzing_handle hnd, bz_cursor c, bz_inv_t *data)
+{
+  switch (hnd->engine_id) {
+#ifdef BZ_ENGINE_KHASH
+  case BZ_EID_KHASH:
+    kh_val(hnd->kh_inv, c->kh_iter) = *data;
+    break;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    alignhash_value(hnd->ah_inv, c->ah_iter) = *data;
+    break;
+#endif
+  default:
+    break;
+  }
+}
+
+uint64_t
+bzing_spent_mark(bzing_handle hnd, const uint8_t *outpoint, uint64_t offset)
+{
+  bz_cursor prev;
+  bz_inv_t prev_inv;
+  uint32_t n_txout, i_txout;
+  uint64_t spent_offset, spent_pos, *spent_slot;
+  bool inv_dirty = false;
+
+  prev = bzing_inv_cursor_find(hnd, (bz_uint256_t *)outpoint);
+  prev_inv = bzing_inv_cursor_get(hnd, prev);
+
+  // index of the spent output
+  i_txout = *((uint32_t *) (outpoint+32));
+
+  if (prev_inv.spent == UINT64_MAX) {
+    // TODO: error, transaction tried to spend a block
+  } else if ((prev_inv.spent & BZ_TXI_SPENT_UMARK) == BZ_TXI_SPENT_UMARK) {
+    n_txout = prev_inv.spent & BZ_TXI_SPENT_UMASK;
+    if (n_txout == 0) {
+      // TODO: error, previous transaction has no outputs
+    } else if (n_txout < i_txout) {
+      // TODO: error, previous transaction has too few outputs
+      // Note: We do not catch this error if the spent map for the previous
+      //       transaction is already initialized, this is simply the cost
+      //       of saving every bit of memory we can. However, this inconsistency
+      //       is of course detected when a transaction is fully verified.
+    }
+
+    // reserve space in spent map
+    spent_pos = bzing_spent_reserve(hnd, n_txout);
+
+    if (spent_pos & ~BZ_TXI_SPENT_MASK) {
+      // TODO: error, spent map overflow
+    }
+
+    prev_inv.spent = spent_pos;
+    inv_dirty = true;
+  } else {
+    spent_pos = prev_inv.spent & BZ_TXI_SPENT_MASK;
+  }
+
+  // set quick spent index bits
+  if (i_txout < BZ_TXI_SPENT_BITS) {
+    prev_inv.spent |= bz_txi_spent_map[i_txout];
+    inv_dirty = true;
+  }
+
+  // actual position depends on the index of the output
+  spent_pos += i_txout;
+  spent_offset = spent_pos * sizeof(uint64_t);
+  spent_slot = (uint64_t *) (hnd->spent_data + spent_offset);
+
+  *spent_slot = offset;
+
+  if (inv_dirty) {
+    bzing_inv_cursor_set(hnd, prev, &prev_inv);
+  }
+}
+
 void
-bzing_block_add(bzing_handle hnd, uint32_t blk_no,
+bzing_block_add(bzing_handle hnd, uint32_t blk_no, uint64_t outer_offset,
                 const uint8_t *data, size_t max_len, size_t *actual_len)
 {
   int i;
-  uint64_t n_tx, n_txin, n_txout, script_len, offset = 80, tx_start,
-           spent_offset;
+  uint64_t n_tx, n_txin, n_txout, script_len, offset = 80, tx_start;
   bz_inv_t inv;
   bz_uint256_t block_hash, *tx_hashes = NULL, merkle_root;
 
@@ -287,9 +438,9 @@ bzing_block_add(bzing_handle hnd, uint32_t blk_no,
   kh_put(bin, hnd->inv, &k_block_hash, &result);*/
 
   // create index entry for block
-  inv.offset = offset;
-  inv.spent = 0;
-  bzing_inv_add(hnd, block_hash, &inv);
+  inv.offset = outer_offset + offset;
+  inv.spent = UINT64_MAX;
+  bzing_inv_set(hnd, &block_hash, &inv);
 
   //print_uint256(&block_hash);
 
@@ -306,6 +457,9 @@ bzing_block_add(bzing_handle hnd, uint32_t blk_no,
     // parse inputs
     n_txin = parse_var_int(data, &offset);
     while (n_txin > 0) {
+      if (i != 0) {
+        bzing_spent_mark(hnd, data + offset, outer_offset + tx_start);
+      }
       offset += 36;
       script_len = parse_var_int(data, &offset);
       offset += script_len + 4;
@@ -314,10 +468,10 @@ bzing_block_add(bzing_handle hnd, uint32_t blk_no,
 
     // parse outputs
     n_txout = parse_var_int(data, &offset);
-
-    // reserve space in spent map
-    spent_offset = bzing_spent_reserve(hnd, n_txout);
-
+    if (n_txout > UINT32_MAX) {
+      // TODO: Error
+    }
+    inv.spent = BZ_TXI_SPENT_UMARK | (n_txout & BZ_TXI_SPENT_UMASK);
     while (n_txout > 0) {
       offset += 8;
       script_len = parse_var_int(data, &offset);
@@ -332,9 +486,8 @@ bzing_block_add(bzing_handle hnd, uint32_t blk_no,
     double_sha256(data+tx_start, offset-tx_start, &tx_hashes[i]);
 
     // create index entry for transaction
-    inv.offset = offset;
-    inv.spent = spent_offset;
-    bzing_inv_add(hnd, tx_hashes[i], &inv);
+    inv.offset = outer_offset + tx_start;
+    bzing_inv_set(hnd, &tx_hashes[i], &inv);
   }
   calc_merkle_root(tx_hashes, n_tx, &merkle_root);
   if (0 != memcmp(merkle_root.d8, data+36, sizeof(bz_uint256_t))) {
@@ -357,9 +510,10 @@ bzing_index_regen(bzing_handle hnd,
   uint64_t offset = 0;
 
   while (offset < (len-1)) {
+    offset += 8;
     n_blocks++;
     printf("Block #%lu %llu\n", (long unsigned int) n_blocks, (long long unsigned int) offset);
-    bzing_block_add(hnd, n_blocks, data + offset, len - offset, &block_len);
+    bzing_block_add(hnd, n_blocks, offset, data + offset, len - offset, &block_len);
     offset += block_len;
   }
 }

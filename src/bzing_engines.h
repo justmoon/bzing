@@ -34,15 +34,15 @@
 #define BZ_ENGINE_BDB
 
 // Engine IDs
-#define BZ_EID_NONE 0xffff
-#define BZ_EID_KHASH 1
-#define BZ_EID_ALIGN 2
-#define BZ_EID_LMC 3
-#define BZ_EID_TC 4
-#define BZ_EID_KC 5
-#define BZ_EID_BDB 6
+#define BZ_EID_NONE    255
+#define BZ_EID_KHASH     1
+#define BZ_EID_ALIGN     2
+#define BZ_EID_LMC       3
+#define BZ_EID_TC        4
+#define BZ_EID_KC        5
+#define BZ_EID_BDB       6
 
-#define BZ_EID_DEFAULT BZ_EID_ALIGN
+#define BZ_EID_DEFAULT BZ_EID_KHASH
 
 // Select default engine
 // (precedence: KC, TC, LMC, BDB, KHASH)

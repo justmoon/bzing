@@ -96,3 +96,14 @@ print_uint256(const bz_uint256_t *hash)
   }
   printf("\n");
 }
+
+void
+print_uint256r(const bz_uint256_t *hash)
+{
+  int i;
+
+  for (i = 31; i >= 0; i--) {
+    printf("%02x", hash->d8[i]);
+  }
+  printf("\n");
+}

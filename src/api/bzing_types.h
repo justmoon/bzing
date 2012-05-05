@@ -56,9 +56,15 @@ typedef struct bz_inv bz_inv_t;
 #define BZ_INV_TX      1
 #define BZ_INV_BLOCK   2
 
-// lower 15 bytes are used for the offset
-#define BZ_TXI_SPENT_MASK 0x00ffffffffffffff
 // high byte used as a bitset
-#define BZ_TXI_SPENT_BITS 8
+#define BZ_TXI_SPENT_BITS  8
+// lower 15 bytes are used for the offset
+#define BZ_TXI_SPENT_MASK   0x00ffffffffffffff
+// maximum unambiguous offset
+#define BZ_TXI_SPENT_MAX    0x00fffffeffffffff
+// marker for uninitialized spend values
+#define BZ_TXI_SPENT_UMARK  0x00ffffff00000000
+// mask for n_txout in uninitialized spend values
+#define BZ_TXI_SPENT_UMASK  0x00000000ffffffff
 
 #endif

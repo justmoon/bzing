@@ -32,39 +32,55 @@ extern "C" {
   /** block chain database instance handle */
   typedef struct bzing_handle *bzing_handle;
 
+  typedef struct __bz_cursor *bz_cursor;
+
   /**
    * Allocate a new database handle.
    */
-  BZING_API bzing_handle bzing_alloc(void);
+  BZING_API bzing_handle
+  bzing_alloc(void);
 
   /**
    * Free a database handle.
    */
-  BZING_API void bzing_free(bzing_handle handle);
+  BZING_API void
+  bzing_free(bzing_handle handle);
 
   /**
    * Reset a database.
    */
-  BZING_API void bzing_reset(bzing_handle handle);
+  BZING_API void
+  bzing_reset(bzing_handle handle);
 
   /**
    * Add an item to the inventory index.
    */
-  BZING_API void bzing_inv_add(bzing_handle hnd,
-                               bz_uint256_t hash, bz_inv_t *data);
+  BZING_API void
+  bzing_inv_set(bzing_handle hnd,
+                bz_uint256_t *hash, bz_inv_t *data);
+
+
+  BZING_API bz_inv_t
+  bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash);
+
+
+  BZING_API bz_cursor
+  bzing_inv_cursor_find(bzing_handle hnd, bz_uint256_t *hash);
 
   /**
    * Add a block to the chain.
    */
-  BZING_API void bzing_block_add(bzing_handle handle,
-                                 uint32_t blk_no, const uint8_t *data,
-                                 size_t max_len, size_t *actual_len);
+  BZING_API void
+  bzing_block_add(bzing_handle handle, uint32_t blk_no,
+                  uint64_t outer_offset, const uint8_t *data,
+                  size_t max_len, size_t *actual_len);
 
   /**
    * Regenerate indexes for specific block chain data.
    */
-  BZING_API void bzing_index_regen(bzing_handle handle,
-                                   const uint8_t *data, size_t len);
+  BZING_API void
+  bzing_index_regen(bzing_handle handle,
+                    const uint8_t *data, size_t len);
 
 #ifdef __cplusplus
 }

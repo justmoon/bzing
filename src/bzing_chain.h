@@ -27,7 +27,7 @@
 
 struct bzing_handle
 {
-  int engine_id; // BZ_EID_*
+  uint8_t engine_id; // BZ_EID_*
 
 #ifdef BZ_ENGINE_KHASH
   // index of inventories
@@ -36,7 +36,7 @@ struct bzing_handle
 
 #ifdef BZ_ENGINE_ALIGN
   // index of inventories
-  alignhash_inv_t *align_inv;
+  alignhash_inv_t *ah_inv;
 #endif
 
 #ifdef BZ_ENGINE_LMC
@@ -66,5 +66,20 @@ struct bzing_handle
 };
 
 typedef struct bzing_handle bzing_handle_t;
+
+struct __bz_cursor
+{
+  union {
+#ifdef BZ_ENGINE_KHASH
+    khiter_t kh_iter;
+#endif
+
+#ifdef BZ_ENGINE_ALIGN
+    ah_iter_t ah_iter;
+#endif
+  }
+};
+
+typedef struct __bz_cursor bz_cursor_t;
 
 #endif
