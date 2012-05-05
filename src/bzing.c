@@ -24,6 +24,7 @@
 #include "api/bzing_util.h"
 #include "bzing_chain.h"
 #include "bzing_parser.h"
+#include "bzing.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,6 +42,9 @@ const uint64_t bz_txi_spent_map[] = {
   0x0100000000000000
 };
 
+#define BZ_SPENT_INIT_SIZE 4096
+#define BZ_SPENT_GROW_FACTOR 2
+
 bzing_handle
 bzing_alloc(void)
 {
@@ -54,11 +58,11 @@ bzing_alloc(void)
   hnd = malloc(sizeof(bzing_handle_t));
   //hnd->inv = alignhash_init_inv();
   hnd->engine_id = BZ_EID_DEFAULT;
-  hnd->spent_data = NULL; // TODO
+  hnd->spent_size = BZ_SPENT_INIT_SIZE; // TODO
+  hnd->spent_data = malloc(hnd->spent_size);
   // the spent offset mustn't be zero, otherwise a transaction might look like
   // a block
   hnd->spent_len = 1;
-  hnd->spent_size = 0; // TODO
 
   printf("%d %d\n", hnd->engine_id, BZ_EID_DEFAULT);
 
@@ -183,9 +187,14 @@ bzing_spent_reserve(bzing_handle hnd, uint64_t count)
   hnd->spent_len += count;
 
   // resize necessary?
-  if (hnd->spent_len > hnd->spent_size) {
-    // TODO: resize reserved memory
-    // TODO: zero new memory
+  if ((hnd->spent_len * sizeof(uint64_t)) > hnd->spent_size) {
+    printf("Spent resize %d\n", hnd->spent_size*BZ_SPENT_GROW_FACTOR);
+    // double the size of the allocated memory
+    hnd->spent_data = realloc(hnd->spent_data, hnd->spent_size*BZ_SPENT_GROW_FACTOR);
+    // zero out the newly allocated half
+    memset(hnd->spent_data + hnd->spent_size, 0, hnd->spent_size*(BZ_SPENT_GROW_FACTOR-1));
+    // update the size information
+    hnd->spent_size *= BZ_SPENT_GROW_FACTOR;
   }
 
   return pos;
@@ -305,6 +314,10 @@ bzing_block_add(bzing_handle hnd, uint32_t blk_no,
 
     // parse outputs
     n_txout = parse_var_int(data, &offset);
+
+    // reserve space in spent map
+    spent_offset = bzing_spent_reserve(hnd, n_txout);
+
     while (n_txout > 0) {
       offset += 8;
       script_len = parse_var_int(data, &offset);
@@ -317,9 +330,6 @@ bzing_block_add(bzing_handle hnd, uint32_t blk_no,
 
     // calculate tx hash
     double_sha256(data+tx_start, offset-tx_start, &tx_hashes[i]);
-
-    // reserve space in spent map
-    spent_offset = bzing_spent_reserve(hnd, n_txout);
 
     // create index entry for transaction
     inv.offset = offset;
