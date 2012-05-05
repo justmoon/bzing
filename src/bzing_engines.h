@@ -92,7 +92,7 @@
 
 #include "ulib/alignhash_tpl.h"
 
-DECLARE_ALIGNHASH(inv, uint64_t, bz_inv_t, 1, alignhash_hashfn, alignhash_equalfn);
+DECLARE_ALIGNHASH(inv, uint64_t, bz_inv_t, 1, alignhash_hashfn, alignhash_equalfn)
 
 #endif
 
