@@ -27,6 +27,7 @@
 
 #define BZ_ENGINE_NONE
 #define BZ_ENGINE_KHASH
+#define BZ_ENGINE_ALIGN
 #define BZ_ENGINE_LMC
 #define BZ_ENGINE_TC
 #define BZ_ENGINE_KC
@@ -35,12 +36,13 @@
 // Engine IDs
 #define BZ_EID_NONE 0xffff
 #define BZ_EID_KHASH 1
-#define BZ_EID_LMC 2
-#define BZ_EID_TC 3
-#define BZ_EID_KC 4
-#define BZ_EID_BDB 5
+#define BZ_EID_ALIGN 2
+#define BZ_EID_LMC 3
+#define BZ_EID_TC 4
+#define BZ_EID_KC 5
+#define BZ_EID_BDB 6
 
-#define BZ_EID_DEFAULT BZ_EID_BDB
+#define BZ_EID_DEFAULT BZ_EID_ALIGN
 
 // Select default engine
 // (precedence: KC, TC, LMC, BDB, KHASH)
@@ -75,19 +77,26 @@
 #endif
 
 #ifndef BZ_EID_DEFAULT
+#ifdef BZ_ENGINE_ALIGN
+#define BZ_EID_DEFAULT BZ_EID_ALIGN
+#endif
+#endif
+
+#ifndef BZ_EID_DEFAULT
 #error No engines selected for compilation
 #endif
 
-/*
+//------------------------------------------------------------------------------
+
+#ifdef BZ_ENGINE_ALIGN
+
 #include "ulib/alignhash_tpl.h"
 
-DECLARE_ALIGNHASH(inv, uint64_t, uint64_t, 1, alignhash_hashfn, alignhash_equalfn);
+DECLARE_ALIGNHASH(inv, uint64_t, bz_inv_t, 1, alignhash_hashfn, alignhash_equalfn);
 
-struct bzing_handle_t {
-  // index of inventories
-  alignhash_inv_t *inv;
-};*/
+#endif
 
+//------------------------------------------------------------------------------
 
 /*
   #include "klib/kstring.h"

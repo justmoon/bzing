@@ -34,6 +34,11 @@ struct bzing_handle
   khash_t(256) *kh_inv;
 #endif
 
+#ifdef BZ_ENGINE_ALIGN
+  // index of inventories
+  alignhash_inv_t *align_inv;
+#endif
+
 #ifdef BZ_ENGINE_LMC
   // index of inventories
   local_memcache_t *lmc_inv;

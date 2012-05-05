@@ -74,6 +74,11 @@ bzing_alloc(void)
     hnd->kh_inv = kh_init(256);
     break;
 #endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    hnd->align_inv = alignhash_init_inv();
+    break;
+#endif
 #ifdef BZ_ENGINE_LMC
   case BZ_EID_LMC:
     hnd->lmc_inv = local_memcache_create("main", 0, 512000, 0, &hnd->lmc_error);
@@ -196,16 +201,24 @@ bzing_inv_add(bzing_handle hnd,
 {
   int result;
 #ifdef BZ_ENGINE_KHASH
-  khiter_t iter;
+  khiter_t kh_iter;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  ah_iter_t align_iter;
 #endif
 
   switch (hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
-    if (hnd->engine_id == BZ_EID_KHASH) {
-      iter = kh_put(256, hnd->kh_inv, hash, &result);
-      kh_val(hnd->kh_inv, iter) = *data;
-    }
+    kh_iter = kh_put(256, hnd->kh_inv, hash, &result);
+    kh_val(hnd->kh_inv, kh_iter) = *data;
+    break;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    // TODO: Calculate hash
+    align_iter = alignhash_set(inv, hnd->align_inv, hash.d64[0], &result);
+    alignhash_value(hnd->align_inv, align_iter) = *data;
     break;
 #endif
 #ifdef BZ_ENGINE_LMC
@@ -257,10 +270,6 @@ bzing_block_add(bzing_handle hnd, uint32_t blk_no,
   bz_uint256_t block_hash, *tx_hashes = NULL, merkle_root;
 
   double_sha256(data, 80, &block_hash);
-
-  /* ah_iter_t iter;
-  iter = alignhash_set(inv, hnd->inv, block_hash.d64[0], &result);
-  alignhash_value(hnd->inv, iter) = offset;*/
 
   /*kstring_t k_block_hash;
   k_block_hash.l = sizeof(bz_uint256_t);
