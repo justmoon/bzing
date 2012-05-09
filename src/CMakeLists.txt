@@ -45,6 +45,14 @@ SET_TARGET_PROPERTIES(bzing PROPERTIES
                       SOVERSION ${BZING_MAJOR}
                       VERSION ${BZING_MAJOR}.${BZING_MINOR}.${BZING_MICRO})
 
+# OpenSSL is required
+FIND_PACKAGE(OpenSSL REQUIRED)
+
+SET (LIBS lmc pthread rt crypto tokyocabinet db kyotocabinet)
+
+TARGET_LINK_LIBRARIES(bzing ${LIBS})
+TARGET_LINK_LIBRARIES(bzing_s ${LIBS})
+
 # create some directories
 FILE(MAKE_DIRECTORY ${libDir})
 FILE(MAKE_DIRECTORY ${incDir})
