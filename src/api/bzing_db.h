@@ -60,12 +60,31 @@ extern "C" {
                 bz_uint256_t *hash, bz_inv_t *data);
 
 
-  BZING_API bz_inv_t
+  BZING_API bz_inv
   bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash);
 
 
+  BZING_API void
+  bzing_inv_data_free(bzing_handle hnd, void *data);
+
   BZING_API bz_cursor
-  bzing_inv_cursor_find(bzing_handle hnd, bz_uint256_t *hash);
+  bzing_inv_cursor_new(bzing_handle hnd);
+
+  BZING_API void
+  bzing_inv_cursor_find(bz_cursor c, bz_uint256_t *hash);
+
+  BZING_API bz_inv
+  bzing_inv_cursor_get(bz_cursor c);
+
+  BZING_API void
+  bzing_inv_cursor_set(bz_cursor c, bz_inv data);
+
+  BZING_API void
+  bzing_inv_cursor_free(bz_cursor c);
+
+  BZING_API uint64_t
+  bzing_spent_mark(bzing_handle hnd,
+                   const uint8_t *outpoint, uint64_t offset);
 
   /**
    * Add a block to the chain.

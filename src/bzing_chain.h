@@ -29,6 +29,8 @@ struct bzing_handle
 {
   uint8_t engine_id; // BZ_EID_*
 
+  bool use_cursors;
+
 #ifdef BZ_ENGINE_KHASH
   // index of inventories
   khash_t(256) *kh_inv;
@@ -69,6 +71,8 @@ typedef struct bzing_handle bzing_handle_t;
 
 struct __bz_cursor
 {
+  bzing_handle_t *hnd;
+
   union {
 #ifdef BZ_ENGINE_KHASH
     khiter_t kh_iter;
@@ -77,7 +81,11 @@ struct __bz_cursor
 #ifdef BZ_ENGINE_ALIGN
     ah_iter_t ah_iter;
 #endif
-  }
+
+#ifdef BZ_ENGINE_KC
+    KCCUR *kc_cursor;
+#endif
+  } u;
 };
 
 typedef struct __bz_cursor bz_cursor_t;

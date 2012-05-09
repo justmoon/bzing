@@ -34,7 +34,7 @@
 #define BZ_ENGINE_BDB
 
 // Engine IDs
-#define BZ_EID_NONE    255
+#define BZ_EID_NONE      0
 #define BZ_EID_KHASH     1
 #define BZ_EID_ALIGN     2
 #define BZ_EID_LMC       3

@@ -42,6 +42,17 @@ const uint64_t bz_txi_spent_map[] = {
   0x0100000000000000
 };
 
+// define which engines support cursors
+const bool bz_cursor_support[256] = {
+  0, // NONE
+  1, // KHASH
+  1, // ALIGN
+  0, // LMC
+  0, // TC
+  0, // KC
+  0  // BDB
+};
+
 #define BZ_SPENT_INIT_SIZE 4096
 #define BZ_SPENT_GROW_FACTOR 2
 
@@ -58,6 +69,7 @@ bzing_alloc(void)
   hnd = malloc(sizeof(bzing_handle_t));
   //hnd->inv = alignhash_init_inv();
   hnd->engine_id = BZ_EID_DEFAULT;
+  hnd->use_cursors = bz_cursor_support[hnd->engine_id];
   hnd->spent_size = BZ_SPENT_INIT_SIZE; // TODO
   hnd->spent_data = malloc(hnd->spent_size);
   // the spent offset mustn't be zero, otherwise a transaction might look like
@@ -167,16 +179,26 @@ bzing_free(bzing_handle hnd)
 void
 bzing_reset(bzing_handle hnd)
 {
+  switch (hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
-  if (hnd->engine_id == BZ_EID_KHASH) {
+  case BZ_EID_KHASH:
     // TODO
-  }
+    break;
 #endif
 #ifdef BZ_ENGINE_LMC
-  if (hnd->engine_id == BZ_EID_LMC) {
+  case BZ_EID_LMC:
     local_memcache_drop_namespace("main", 0, 0, &hnd->lmc_error);
-  }
+    break;
 #endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    kcdbclear(hnd->kc_inv);
+    break;
+#endif
+  default:
+    // TODO: error
+    break;
+  }
 }
 
 uint64_t
@@ -188,7 +210,7 @@ bzing_spent_reserve(bzing_handle hnd, uint64_t count)
 
   // resize necessary?
   if ((hnd->spent_len * sizeof(uint64_t)) > hnd->spent_size) {
-    printf("Spent resize %d\n", hnd->spent_size*BZ_SPENT_GROW_FACTOR);
+    printf("Spent resize %lu\n", hnd->spent_size*BZ_SPENT_GROW_FACTOR);
     // double the size of the allocated memory
     hnd->spent_data = realloc(hnd->spent_data, hnd->spent_size*BZ_SPENT_GROW_FACTOR);
     // zero out the newly allocated half
@@ -267,10 +289,13 @@ bzing_inv_set(bzing_handle hnd, bz_uint256_t *hash, bz_inv_t *data)
   }
 }
 
-bz_inv_t
+bz_inv
 bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash)
 {
   int result;
+  size_t sp;
+
+  bz_inv inv = NULL;
 #ifdef BZ_ENGINE_KHASH
   khiter_t kh_iter;
 #endif
@@ -282,37 +307,66 @@ bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash)
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
     kh_iter = kh_put(256, hnd->kh_inv, *hash, &result);
-    return kh_val(hnd->kh_inv, kh_iter);
+    inv = malloc(sizeof(bz_inv_t));
+    *inv = kh_val(hnd->kh_inv, kh_iter);
     break;
 #endif
 #ifdef BZ_ENGINE_ALIGN
   case BZ_EID_ALIGN:
     // TODO: Calculate hash
     ah_iter = alignhash_set(inv, hnd->ah_inv, hash->d64[0], &result);
-    return alignhash_value(hnd->ah_inv, ah_iter);
+    inv = malloc(sizeof(bz_inv_t));
+    *inv = alignhash_value(hnd->ah_inv, ah_iter);
+    break;
+#endif
+#ifdef BZ_ENGINE_LMC
+  case BZ_EID_LMC:
+    local_memcache_get_new(hnd->lmc_inv,
+                           (char *) hash->d8, 32, &sp);
+    break;
+#endif
+#ifdef BZ_ENGINE_TC
+  case BZ_EID_TC:
+    inv = tchdbget(hnd->tc_inv,
+                   hash->d8, 32, &result);
+    break;
+#endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    inv = (bz_inv) kcdbget(hnd->kc_inv,
+                           (char *) hash->d8, 32, &sp);
+    break;
+#endif
+#ifdef BZ_ENGINE_BDB
+  case BZ_EID_BDB:
+    memset(&bdb_key, 0, sizeof(DBT));
+    memset(&bdb_data, 0, sizeof(DBT));
+    bdb_key.data = hash->d8;
+    bdb_key.size = 32;
+    bdb_data.flags = DB_DBT_MALLOC;
+
+    result = hnd->bdb_inv->get(hnd->bdb_inv, NULL, &bdb_key, &bdb_data, 0);
+    inv = bdb_data.data;
     break;
 #endif
   default:
     break;
   }
+
+  return inv;
 }
 
 bz_cursor
-bzing_inv_cursor_find(bzing_handle hnd, bz_uint256_t *hash)
+bzing_inv_cursor_new(bzing_handle hnd)
 {
-  int result;
   bz_cursor c = (bz_cursor) malloc(sizeof(bz_cursor_t));
 
+  c->hnd = hnd;
+
   switch (hnd->engine_id) {
-#ifdef BZ_ENGINE_KHASH
-  case BZ_EID_KHASH:
-    c->kh_iter = kh_put(256, hnd->kh_inv, *hash, &result);
-    break;
-#endif
-#ifdef BZ_ENGINE_ALIGN
-  case BZ_EID_ALIGN:
-    // TODO: Calculate hash
-    c->ah_iter = alignhash_set(inv, hnd->ah_inv, hash->d64[0], &result);
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    c->u.kc_cursor = kcdbcursor(hnd->kc_inv);
     break;
 #endif
   default:
@@ -322,18 +376,26 @@ bzing_inv_cursor_find(bzing_handle hnd, bz_uint256_t *hash)
   return c;
 }
 
-bz_inv_t
-bzing_inv_cursor_get(bzing_handle hnd, bz_cursor c)
+void
+bzing_inv_cursor_find(bz_cursor c, bz_uint256_t *hash)
 {
-  switch (hnd->engine_id) {
+  int result;
+
+  switch (c->hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
-    return kh_val(hnd->kh_inv, c->kh_iter);
+    c->u.kh_iter = kh_put(256, c->hnd->kh_inv, *hash, &result);
     break;
 #endif
 #ifdef BZ_ENGINE_ALIGN
   case BZ_EID_ALIGN:
-    return alignhash_value(hnd->ah_inv, c->ah_iter);
+    // TODO: Calculate hash
+    c->u.ah_iter = alignhash_set(inv, c->hnd->ah_inv, hash->d64[0], &result);
+    break;
+#endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    kccurjumpkey(c->u.kc_cursor, (char *) hash, 32);
     break;
 #endif
   default:
@@ -341,21 +403,78 @@ bzing_inv_cursor_get(bzing_handle hnd, bz_cursor c)
   }
 }
 
-bz_inv_t
-bzing_inv_cursor_set(bzing_handle hnd, bz_cursor c, bz_inv_t *data)
+bz_inv
+bzing_inv_cursor_get(bz_cursor c)
 {
-  switch (hnd->engine_id) {
+  size_t sp;
+  bz_inv data = NULL;
+
+  switch (c->hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
-    kh_val(hnd->kh_inv, c->kh_iter) = *data;
+    data = malloc(sizeof(bz_inv_t));
+    *data = kh_val(c->hnd->kh_inv, c->u.kh_iter);
     break;
 #endif
 #ifdef BZ_ENGINE_ALIGN
   case BZ_EID_ALIGN:
-    alignhash_value(hnd->ah_inv, c->ah_iter) = *data;
+    data = malloc(sizeof(bz_inv_t));
+    *data = alignhash_value(c->hnd->ah_inv, c->u.ah_iter);
+    break;
+#endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    data = (bz_inv) kccurgetvalue(c->u.kc_cursor, &sp, false);
     break;
 #endif
   default:
+    break;
+  }
+
+  return data;
+}
+
+void
+bzing_inv_cursor_set(bz_cursor c, bz_inv data)
+{
+  switch (c->hnd->engine_id) {
+#ifdef BZ_ENGINE_KHASH
+  case BZ_EID_KHASH:
+    kh_val(c->hnd->kh_inv, c->u.kh_iter) = *data;
+    break;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    alignhash_value(c->hnd->ah_inv, c->u.ah_iter) = *data;
+    break;
+#endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    kccursetvalue(c->u.kc_cursor, (char *) data, sizeof(bz_inv_t), false);
+    break;
+#endif
+  default:
+    break;
+  }
+}
+
+void
+bzing_inv_cursor_free(bz_cursor c)
+{
+  free(c);
+}
+
+void
+bzing_inv_data_free(bzing_handle hnd, void *data)
+{
+  switch (hnd->engine_id) {
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    kcfree(data);
+    break;
+#endif
+  default:
+    free(data);
     break;
   }
 }
@@ -363,24 +482,31 @@ bzing_inv_cursor_set(bzing_handle hnd, bz_cursor c, bz_inv_t *data)
 uint64_t
 bzing_spent_mark(bzing_handle hnd, const uint8_t *outpoint, uint64_t offset)
 {
-  bz_cursor prev;
-  bz_inv_t prev_inv;
+  bz_cursor prev = NULL;
+  bz_inv prev_inv;
   uint32_t n_txout, i_txout;
   uint64_t spent_offset, spent_pos, *spent_slot;
   bool inv_dirty = false;
 
-  prev = bzing_inv_cursor_find(hnd, (bz_uint256_t *)outpoint);
-  prev_inv = bzing_inv_cursor_get(hnd, prev);
+  if (hnd->use_cursors) {
+    prev = bzing_inv_cursor_new(hnd);
+    bzing_inv_cursor_find(prev, (bz_uint256_t *)outpoint);
+    prev_inv = bzing_inv_cursor_get(prev);
+  } else {
+    prev_inv = bzing_inv_get(hnd, (bz_uint256_t *)outpoint);
+  }
 
   // index of the spent output
   i_txout = *((uint32_t *) (outpoint+32));
 
-  if (prev_inv.spent == UINT64_MAX) {
+  if (prev_inv->spent == UINT64_MAX) {
     // TODO: error, transaction tried to spend a block
-  } else if ((prev_inv.spent & BZ_TXI_SPENT_UMARK) == BZ_TXI_SPENT_UMARK) {
-    n_txout = prev_inv.spent & BZ_TXI_SPENT_UMASK;
+    return 0;
+  } else if ((prev_inv->spent & BZ_TXI_SPENT_UMARK) == BZ_TXI_SPENT_UMARK) {
+    n_txout = prev_inv->spent & BZ_TXI_SPENT_UMASK;
     if (n_txout == 0) {
       // TODO: error, previous transaction has no outputs
+      return 0;
     } else if (n_txout < i_txout) {
       // TODO: error, previous transaction has too few outputs
       // Note: We do not catch this error if the spent map for the previous
@@ -396,15 +522,15 @@ bzing_spent_mark(bzing_handle hnd, const uint8_t *outpoint, uint64_t offset)
       // TODO: error, spent map overflow
     }
 
-    prev_inv.spent = spent_pos;
+    prev_inv->spent = spent_pos;
     inv_dirty = true;
   } else {
-    spent_pos = prev_inv.spent & BZ_TXI_SPENT_MASK;
+    spent_pos = prev_inv->spent & BZ_TXI_SPENT_MASK;
   }
 
   // set quick spent index bits
   if (i_txout < BZ_TXI_SPENT_BITS) {
-    prev_inv.spent |= bz_txi_spent_map[i_txout];
+    prev_inv->spent |= bz_txi_spent_map[i_txout];
     inv_dirty = true;
   }
 
@@ -416,8 +542,17 @@ bzing_spent_mark(bzing_handle hnd, const uint8_t *outpoint, uint64_t offset)
   *spent_slot = offset;
 
   if (inv_dirty) {
-    bzing_inv_cursor_set(hnd, prev, &prev_inv);
+    if (hnd->use_cursors) {
+      bzing_inv_cursor_set(prev, prev_inv);
+      bzing_inv_cursor_free(prev);
+    } else {
+      bzing_inv_set(hnd, (bz_uint256_t *)outpoint, prev_inv);
+    }
   }
+
+  bzing_inv_data_free(hnd, prev_inv);
+
+  return spent_offset;
 }
 
 void

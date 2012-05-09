@@ -52,6 +52,7 @@ struct bz_inv
 };
 
 typedef struct bz_inv bz_inv_t;
+typedef bz_inv_t *bz_inv;
 
 #define BZ_INV_TX      1
 #define BZ_INV_BLOCK   2
