@@ -169,16 +169,42 @@ bzing_free(bzing_handle hnd)
 {
   if (!hnd) return;
 
-  //alignhash_destroy_inv(hnd->inv);
   switch (hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
     kh_destroy(256, hnd->kh_inv);
     break;
 #endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    alignhash_destroy_inv(hnd->ah_inv);
+    break;
+#endif
 #ifdef BZ_ENGINE_LMC
   case BZ_EID_LMC:
     local_memcache_free(hnd->lmc_inv, &hnd->lmc_error);
+    break;
+#endif
+#ifdef BZ_ENGINE_TC
+  case BZ_EID_TC:
+    tchdbdel(hnd->tc_inv);
+    break;
+#endif
+#ifdef BZ_ENGINE_KC
+  case BZ_EID_KC:
+    kcdbdel(hnd->kc_inv);
+    break;
+#endif
+#ifdef BZ_ENGINE_BDB
+  case BZ_EID_BDB:
+    if (hnd->bdb_inv != NULL) {
+      hnd->bdb_inv->close(hnd->bdb_inv, 0);
+    }
+    break;
+#endif
+#ifdef BZ_ENGINE_LDB
+  case BZ_EID_LDB:
+    leveldb_close(hnd->ldb_inv);
     break;
 #endif
   default:
@@ -194,7 +220,12 @@ bzing_reset(bzing_handle hnd)
   switch (hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
   case BZ_EID_KHASH:
-    // TODO
+    kh_clear(256, hnd->kh_inv);
+    break;
+#endif
+#ifdef BZ_ENGINE_ALIGN
+  case BZ_EID_ALIGN:
+    alignhash_clear_inv(hnd->ah_inv);
     break;
 #endif
 #ifdef BZ_ENGINE_LMC
@@ -202,9 +233,24 @@ bzing_reset(bzing_handle hnd)
     local_memcache_drop_namespace("main", 0, 0, &hnd->lmc_error);
     break;
 #endif
+#ifdef BZ_ENGINE_TC
+  case BZ_EID_TC:
+    tchdbvanish(hnd->tc_inv);
+    break;
+#endif
 #ifdef BZ_ENGINE_KC
   case BZ_EID_KC:
     kcdbclear(hnd->kc_inv);
+    break;
+#endif
+#ifdef BZ_ENGINE_BDB
+  case BZ_EID_BDB:
+    hnd->bdb_inv->truncate(hnd->bdb_inv, NULL, NULL, 0);
+    break;
+#endif
+#ifdef BZ_ENGINE_LDB
+  case BZ_EID_LDB:
+    // TODO
     break;
 #endif
   default:
