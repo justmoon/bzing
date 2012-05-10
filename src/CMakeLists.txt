@@ -50,6 +50,9 @@ FIND_PACKAGE(OpenSSL REQUIRED)
 
 SET (LIBS lmc pthread rt crypto tokyocabinet db kyotocabinet)
 
+# Backend: LevelDB
+SET (LIBS ${LIBS} leveldb snappy)
+
 TARGET_LINK_LIBRARIES(bzing ${LIBS})
 TARGET_LINK_LIBRARIES(bzing_s ${LIBS})
 

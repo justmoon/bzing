@@ -32,6 +32,7 @@
 #define BZ_ENGINE_TC
 #define BZ_ENGINE_KC
 #define BZ_ENGINE_BDB
+#define BZ_ENGINE_LDB
 
 // Engine IDs
 #define BZ_EID_NONE      0
@@ -41,6 +42,7 @@
 #define BZ_EID_TC        4
 #define BZ_EID_KC        5
 #define BZ_EID_BDB       6
+#define BZ_EID_LDB       7
 
 #define BZ_EID_DEFAULT BZ_EID_KHASH
 
@@ -67,6 +69,12 @@
 #ifndef BZ_EID_DEFAULT
 #ifdef BZ_ENGINE_BDB
 #define BZ_EID_DEFAULT BZ_EID_BDB
+#endif
+#endif
+
+#ifndef BZ_EID_DEFAULT
+#ifdef BZ_ENGINE_LDB
+#define BZ_EID_DEFAULT BZ_EID_LDB
 #endif
 #endif
 
@@ -188,6 +196,14 @@ KHASH_MAP_INIT_256(256, bz_inv_t)
 typedef unsigned int            u_int;
 typedef unsigned long           u_long;
 #include <db.h>
+
+#endif
+
+//------------------------------------------------------------------------------
+
+#ifdef BZ_ENGINE_LDB
+
+#include <leveldb/c.h>
 
 #endif
 

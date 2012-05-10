@@ -59,6 +59,14 @@ struct bzing_handle
   DB *bdb_inv;
 #endif
 
+#ifdef BZ_ENGINE_LDB
+  leveldb_t *ldb_inv;
+  leveldb_options_t *ldb_options;
+  leveldb_writeoptions_t *ldb_woptions;
+  leveldb_readoptions_t *ldb_roptions;
+  char *ldb_err;
+#endif
+
   // spent map
   char *spent_data;
   // used length
@@ -84,6 +92,10 @@ struct __bz_cursor
 
 #ifdef BZ_ENGINE_KC
     KCCUR *kc_cursor;
+#endif
+
+#ifdef BZ_ENGINE_LDB
+    leveldb_iterator_t *ldb_iter;
 #endif
   } u;
 };

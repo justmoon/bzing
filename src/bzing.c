@@ -64,6 +64,11 @@ bzing_alloc(void)
 
 #ifdef BZ_ENGINE_BDB
   DB *dbp;
+  uint32_t flags;
+#endif
+
+#ifdef BZ_ENGINE_LDB
+  char *ldb_err = NULL;
 #endif
 
   hnd = malloc(sizeof(bzing_handle_t));
@@ -75,12 +80,6 @@ bzing_alloc(void)
   // the spent offset mustn't be zero, otherwise a transaction might look like
   // a block
   hnd->spent_len = 1;
-
-  printf("%d %d\n", hnd->engine_id, BZ_EID_DEFAULT);
-
-#ifdef BZ_ENGINE_BDB
-  uint32_t flags;
-#endif
 
   switch (hnd->engine_id) {
   case BZ_EID_NONE:
@@ -97,7 +96,7 @@ bzing_alloc(void)
 #endif
 #ifdef BZ_ENGINE_LMC
   case BZ_EID_LMC:
-    hnd->lmc_inv = local_memcache_create("main", 0, 512000, 0, &hnd->lmc_error);
+    hnd->lmc_inv = local_memcache_create("inv", 0, 512000, 0, &hnd->lmc_error);
     if (!hnd->lmc_inv) {
       fprintf(stderr, "Couldn't create localmemcache: %s\n",
               (char *) &hnd->lmc_error.error_str);
@@ -108,7 +107,7 @@ bzing_alloc(void)
 #ifdef BZ_ENGINE_TC
   case BZ_EID_TC:
     hnd->tc_inv = tchdbnew();
-    if (!tchdbopen(hnd->tc_inv, "main.tch", HDBOWRITER | HDBOCREAT)) {
+    if (!tchdbopen(hnd->tc_inv, "inv.tch", HDBOWRITER | HDBOCREAT)) {
       result = tchdbecode(hnd->tc_inv);
       fprintf(stderr, "open error: %s\n", tchdberrmsg(result));
     }
@@ -117,7 +116,7 @@ bzing_alloc(void)
 #ifdef BZ_ENGINE_KC
   case BZ_EID_KC:
     hnd->kc_inv = kcdbnew();
-    if (!kcdbopen(hnd->kc_inv, "main.kch", KCOWRITER | KCOCREATE)) {
+    if (!kcdbopen(hnd->kc_inv, "inv.kch", KCOWRITER | KCOCREATE)) {
       fprintf(stderr, "open error: %s\n", kcecodename(kcdbecode(hnd->kc_inv)));
     }
     break;
@@ -134,7 +133,7 @@ bzing_alloc(void)
 
     result = dbp->open(dbp,          // DB pointer
                        NULL,         // Transaction pointer
-                       "main.db",    // Database file
+                       "inv.db",     // Database file
                        NULL,         // Database name (optional)
                        DB_HASH,      // Database access method
                        flags,        // Open flags
@@ -143,6 +142,19 @@ bzing_alloc(void)
 
     }
     hnd->bdb_inv = dbp;
+    break;
+#endif
+#ifdef BZ_ENGINE_LDB
+  case BZ_EID_LDB:
+    hnd->ldb_options = leveldb_options_create();
+    leveldb_options_set_create_if_missing(hnd->ldb_options, 1);
+    hnd->ldb_woptions = leveldb_writeoptions_create();
+    hnd->ldb_roptions = leveldb_readoptions_create();
+    hnd->ldb_inv = leveldb_open(hnd->ldb_options, "inv.leveldb", &ldb_err);
+    if (ldb_err != NULL) {
+      fprintf(stderr, "open error: %s\n", ldb_err);
+      return NULL;
+    }
     break;
 #endif
   default:
@@ -284,6 +296,14 @@ bzing_inv_set(bzing_handle hnd, bz_uint256_t *hash, bz_inv_t *data)
     result = hnd->bdb_inv->put(hnd->bdb_inv, NULL, &bdb_key, &bdb_data, 0);
     break;
 #endif
+#ifdef BZ_ENGINE_LDB
+  case BZ_EID_LDB:
+    leveldb_put(hnd->ldb_inv, hnd->ldb_woptions,
+                (char *) hash->d8, 32,
+                (char *) data, sizeof(bz_inv_t),
+                &hnd->ldb_err);
+    break;
+#endif
   default:
     break;
   }
@@ -347,6 +367,14 @@ bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash)
 
     result = hnd->bdb_inv->get(hnd->bdb_inv, NULL, &bdb_key, &bdb_data, 0);
     inv = bdb_data.data;
+    break;
+#endif
+#ifdef BZ_ENGINE_LDB
+  case BZ_EID_LDB:
+    inv = (bz_inv) leveldb_get(hnd->ldb_inv, hnd->ldb_roptions,
+                               (char *) hash->d8, 32,
+                               &sp,
+                               &hnd->ldb_err);
     break;
 #endif
   default:
