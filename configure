@@ -25,7 +25,7 @@ require 'fileutils'
 require 'optparse'
 
 prefix = "/usr/local"
-debug = ""
+flags = ""
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: configure [options]"
@@ -33,7 +33,10 @@ OptionParser.new do |opts|
     prefix = p
   end
   opts.on("-g", "--debug", "Set build type to Debug (default: Release)") do |p|
-    debug = " -DCMAKE_BUILD_TYPE=Debug"
+    flags += " -DCMAKE_BUILD_TYPE=Debug"
+  end
+  opts.on("--with-sparsehash", "Compile with libchash (google_sparsehash)") do |p|
+    flags += " -DWITH_SPARSE=1"
   end
   opts.on_tail("-h", "--help", "Output usage summary") do
     puts opts
@@ -49,8 +52,8 @@ FileUtils.rm_f("Makefile")
 puts "== running CMake in build directory"
 FileUtils.mkdir("build")
 FileUtils.cd("build") do
-  if (!system("cmake -DCMAKE_INSTALL_PREFIX='#{prefix}'#{debug} .."))
-    puts "The \"cmake\" program is required to configure bzing. It's"
+  if (!system("cmake -DCMAKE_INSTALL_PREFIX='#{prefix}'#{flags} .."))
+    puts "The \"cmake\" program is required to configure libbzing. It's"
     puts "available from most ports/packaging systems and http://cmake.org"
     exit 1
   end

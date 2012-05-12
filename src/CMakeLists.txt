@@ -50,6 +50,7 @@ add_definitions(-DBZ_ENGINE_ALIGN)
 
 # Backend: sparsehash
 if (WITH_SPARSE)
+  message(STATUS "Enabled sparsehash backend")
   add_definitions(-DBZ_ENGINE_SPARSE)
   SET (SRCS ${SRCS} sparsehash/libchash.c)
 endif (WITH_SPARSE)
