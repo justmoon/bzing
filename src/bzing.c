@@ -47,10 +47,12 @@ const bool bz_cursor_support[256] = {
   0, // NONE
   1, // KHASH
   1, // ALIGN
+  0, // SPARSE
   0, // LMC
   0, // TC
-  0, // KC
-  0  // BDB
+  1, // KC
+  0, // BDB
+  0  // LDB
 };
 
 #define BZ_SPENT_INIT_SIZE 4096
@@ -92,6 +94,11 @@ bzing_alloc(void)
 #ifdef BZ_ENGINE_ALIGN
   case BZ_EID_ALIGN:
     hnd->ah_inv = alignhash_init_inv();
+    break;
+#endif
+#ifdef BZ_ENGINE_SPARSE
+  case BZ_EID_SPARSE:
+    hnd->sp_inv = AllocateHashTable(32, 1);
     break;
 #endif
 #ifdef BZ_ENGINE_LMC
@@ -309,6 +316,11 @@ bzing_inv_set(bzing_handle hnd, bz_uint256_t *hash, bz_inv_t *data)
     alignhash_value(hnd->ah_inv, ah_iter) = *data;
     break;
 #endif
+#ifdef BZ_ENGINE_SPARSE
+  case BZ_EID_SPARSE:
+    HashInsert(hnd->sp_inv, PTR_KEY(hnd->sp_inv, hash->d8), (uint64_t) data);
+    break;
+#endif
 #ifdef BZ_ENGINE_LMC
   case BZ_EID_LMC:
     local_memcache_set(hnd->lmc_inv,
@@ -368,6 +380,9 @@ bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash)
 #ifdef BZ_ENGINE_ALIGN
   ah_iter_t ah_iter;
 #endif
+#ifdef BZ_ENGINE_SPARSE
+  HTItem *bck;
+#endif
 
   switch (hnd->engine_id) {
 #ifdef BZ_ENGINE_KHASH
@@ -383,6 +398,12 @@ bzing_inv_get(bzing_handle hnd, bz_uint256_t *hash)
     ah_iter = alignhash_set(inv, hnd->ah_inv, hash->d64[0], &result);
     inv = malloc(sizeof(bz_inv_t));
     *inv = alignhash_value(hnd->ah_inv, ah_iter);
+    break;
+#endif
+#ifdef BZ_ENGINE_SPARSE
+  case BZ_EID_SPARSE:
+    bck = HashFind(hnd->sp_inv, PTR_KEY(hnd->sp_inv, hash->d8));
+    inv = (bz_inv) bck->data;
     break;
 #endif
 #ifdef BZ_ENGINE_LMC
@@ -545,6 +566,10 @@ bzing_inv_data_free(bzing_handle hnd, void *data)
 #ifdef BZ_ENGINE_KC
   case BZ_EID_KC:
     kcfree(data);
+    break;
+#endif
+#ifdef BZ_ENGINE_SPARSE
+  case BZ_EID_SPARSE:
     break;
 #endif
   default:

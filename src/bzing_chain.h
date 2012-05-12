@@ -24,6 +24,7 @@
 #define __BZING_CHAIN_H__
 
 #include "bzing_engines.h"
+#include <stdbool.h>
 
 struct bzing_handle
 {
@@ -39,6 +40,10 @@ struct bzing_handle
 #ifdef BZ_ENGINE_ALIGN
   // index of inventories
   alignhash_inv_t *ah_inv;
+#endif
+
+#ifdef BZ_ENGINE_SPARSE
+  HashTable *sp_inv;
 #endif
 
 #ifdef BZ_ENGINE_LMC

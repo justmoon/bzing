@@ -1,4 +1,5 @@
 # Copyright (c) 2012 Stefan Thomas <justmoon@members.fsf.org>
+# Copyright (c) 2007-2011, Lloyd Hilaiel <lloyd@hilaiel.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -48,6 +49,8 @@ SET(CMAKE_C_FLAGS
 
 SET(CMAKE_C_FLAGS_DEBUG "-DDEBUG -g")
 SET(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O3 -Wuninitialized")
+
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(test)

@@ -25,26 +25,31 @@
 
 #include "api/bzing_db.h"
 
+// Built-in backends
 #define BZ_ENGINE_NONE
-#define BZ_ENGINE_KHASH
-#define BZ_ENGINE_ALIGN
-#define BZ_ENGINE_LMC
-#define BZ_ENGINE_TC
-#define BZ_ENGINE_KC
-#define BZ_ENGINE_BDB
-#define BZ_ENGINE_LDB
+
+// Backends (set by CMake)
+//#define BZ_ENGINE_KHASH
+//#define BZ_ENGINE_ALIGN
+//#define BZ_ENGINE_SPARSE
+//#define BZ_ENGINE_LMC
+//#define BZ_ENGINE_TC
+//#define BZ_ENGINE_KC
+//#define BZ_ENGINE_BDB
+//#define BZ_ENGINE_LDB
 
 // Engine IDs
 #define BZ_EID_NONE      0
 #define BZ_EID_KHASH     1
 #define BZ_EID_ALIGN     2
-#define BZ_EID_LMC       3
-#define BZ_EID_TC        4
-#define BZ_EID_KC        5
-#define BZ_EID_BDB       6
-#define BZ_EID_LDB       7
+#define BZ_EID_SPARSE    3
+#define BZ_EID_LMC       4
+#define BZ_EID_TC        5
+#define BZ_EID_KC        6
+#define BZ_EID_BDB       7
+#define BZ_EID_LDB       8
 
-#define BZ_EID_DEFAULT BZ_EID_KHASH
+#define BZ_EID_DEFAULT BZ_EID_LDB
 
 // Select default engine
 // (precedence: KC, TC, LMC, BDB, KHASH)
@@ -93,6 +98,11 @@
 #ifndef BZ_EID_DEFAULT
 #error No engines selected for compilation
 #endif
+
+//------------------------------------------------------------------------------
+
+// Needed by sparsehash and BDB
+typedef unsigned long           u_long;
 
 //------------------------------------------------------------------------------
 
@@ -166,6 +176,15 @@ KHASH_MAP_INIT_256(256, bz_inv_t)
 
 //------------------------------------------------------------------------------
 
+#ifdef BZ_ENGINE_SPARSE
+
+#include <stdio.h>
+#include "sparsehash/libchash.h"
+
+#endif
+
+//------------------------------------------------------------------------------
+
 #ifdef BZ_ENGINE_LMC
 
 #include <localmemcache.h>
@@ -194,7 +213,6 @@ KHASH_MAP_INIT_256(256, bz_inv_t)
 #ifdef BZ_ENGINE_BDB
 
 typedef unsigned int            u_int;
-typedef unsigned long           u_long;
 #include <db.h>
 
 #endif

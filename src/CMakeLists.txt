@@ -1,4 +1,5 @@
 # Copyright (c) 2012 Stefan Thomas <justmoon@members.fsf.org>
+# Copyright (c) 2007-2011, Lloyd Hilaiel <lloyd@hilaiel.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +36,65 @@ SET (shareDir ${CMAKE_CURRENT_BINARY_DIR}/../${BZING_DIST_NAME}/share/pkgconfig)
 # set the output path for libraries
 SET(LIBRARY_OUTPUT_PATH ${libDir})
 
+# OpenSSL is required
+FIND_PACKAGE(OpenSSL REQUIRED)
+link_directories ( ${OpenSSL_LIBRARY_DIRS} )
+include_directories ( ${OpenSSL_INCLUDE_DIRS} )
+SET (LIBS crypto)
+
+# Backend: khash
+add_definitions(-DBZ_ENGINE_KHASH)
+
+# Backend: alignhash
+add_definitions(-DBZ_ENGINE_ALIGN)
+
+# Backend: sparsehash
+if (WITH_SPARSE)
+  add_definitions(-DBZ_ENGINE_SPARSE)
+  SET (SRCS ${SRCS} sparsehash/libchash.c)
+endif (WITH_SPARSE)
+
+# Backend: Localmemcache
+find_package(Localmemcache)
+if (Localmemcache_FOUND)
+  add_definitions(-DBZ_ENGINE_LMC)
+  include_directories ( ${Localmemcache_INCLUDE_DIR} )
+  SET (LIBS ${LIBS} lmc pthread rt)
+endif (Localmemcache_FOUND)
+
+# Backend: BerkeleyDB
+find_package(BerkeleyDB)
+if (DB_FOUND)
+  add_definitions(-DBZ_ENGINE_BDB)
+  include_directories ( ${DB_INCLUDE_DIR} )
+  SET (LIBS ${LIBS} ${DB_LIBRARIES})
+endif (DB_FOUND)
+
+# Backend: Tokyo Cabinet
+find_package(TokyoCabinet)
+if (TokyoCabinet_FOUND)
+  add_definitions(-DBZ_ENGINE_TC)
+  include_directories ( ${TokyoCabinet_INCLUDE_DIRS} )
+  SET (LIBS ${LIBS} ${TokyoCabinet_LIBRARIES})
+endif (TokyoCabinet_FOUND)
+
+# Backend: Kyoto Cabinet
+find_package(KyotoCabinet)
+if (KyotoCabinet_FOUND)
+  add_definitions(-DBZ_ENGINE_KC)
+  include_directories ( ${KyotoCabinet_INCLUDE_PATH} )
+  SET (LIBS ${LIBS} ${KyotoCabinet_LIBRARY})
+endif (KyotoCabinet_FOUND)
+
+# Backend: LevelDB
+find_package(LevelDB)
+if (LevelDB_FOUND)
+  add_definitions(-DBZ_ENGINE_LDB)
+  include_directories ( ${LevelDB_INCLUDE_PATH} )
+  # TODO: Detect Snappy and only include if available
+  SET (LIBS ${LIBS} leveldb snappy)
+endif (LevelDB_FOUND)
+
 ADD_LIBRARY(bzing_s STATIC ${SRCS} ${HDRS} ${PUB_HDRS})
 
 ADD_LIBRARY(bzing SHARED ${SRCS} ${HDRS} ${PUB_HDRS})
@@ -45,13 +105,6 @@ SET_TARGET_PROPERTIES(bzing PROPERTIES
                       SOVERSION ${BZING_MAJOR}
                       VERSION ${BZING_MAJOR}.${BZING_MINOR}.${BZING_MICRO})
 
-# OpenSSL is required
-FIND_PACKAGE(OpenSSL REQUIRED)
-
-SET (LIBS lmc pthread rt crypto tokyocabinet db kyotocabinet)
-
-# Backend: LevelDB
-SET (LIBS ${LIBS} leveldb snappy)
 
 TARGET_LINK_LIBRARIES(bzing ${LIBS})
 TARGET_LINK_LIBRARIES(bzing_s ${LIBS})
