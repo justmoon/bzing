@@ -1,8 +1,8 @@
 # Bzing - Low-level Bitcoin database library
 
-Bzing is a high performance blockchain data structure library in ANSI
-C. It is meant to be used as a database backend in higher level
-Bitcoin implementations.
+Bzing is a high performance blockchain data structure library in pure
+C (specifically C99). It is meant to be used as a database backend in
+higher level Bitcoin implementations.
 
 # Installation
 
