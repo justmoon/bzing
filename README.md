@@ -34,7 +34,13 @@ built-in memory-only backends:
 * [sparsehash](http://code.google.com/p/sparsehash/)
   (`--with-sparse`, unsupported)
 
+# Compiling
+
+To compile, you need GCC, Ruby, CMake, Git. Run:
+
 ```sh
+git clone --recursive git://github.com/justmoon/bzing.git
+cd bzing
 ./configure
 make
 sudo make install
